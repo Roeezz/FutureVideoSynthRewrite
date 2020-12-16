@@ -26,6 +26,12 @@ class Generator(BaseModel):
         self.tIn = opt.tIn
         self.tOut = opt.tOut
         self.loadSize = opt.loadSize
+
+        # added for lighting TODO:
+        self.optimizer_D_T = None
+        self.optimizer_G = None
+
+
         if not opt.debug:
             torch.backends.cudnn.benchmark = True
 
@@ -140,3 +146,4 @@ class Generator(BaseModel):
             param_group['lr'] = lr
         print('update learning rate: %f -> %f' % (self.old_lr, lr))
         self.old_lr = lr
+        return 1.0

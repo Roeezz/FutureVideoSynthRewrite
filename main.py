@@ -1,3 +1,5 @@
+import functools
+import os
 import time
 from typing import Optional, Callable
 
@@ -6,10 +8,13 @@ import pytorch_lightning as pl
 from torch.autograd import Variable
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LambdaLR
+from torch.utils.data import DataLoader
+from torchvision.transforms import transforms
 
 from models.Generator import Generator
 from models.SequenceDiscriminator import SequenceDiscriminator
 import torch.nn as nn
+import data.dataset as data
 
 from options.base_options import BaseOptions
 from options.test_options import TestOptions
@@ -22,24 +27,24 @@ def create_model(opt):
     if opt.isTrain:
         modelD = SequenceDiscriminator(opt)
 
-    # from .pwcnet import PWCNet
-    # flowNet = PWCNet()
+        # from .pwcnet import PWCNet
+        # flowNet = PWCNet()
 
-    if opt.isTrain and len(opt.gpu_ids):
-        # flowNet.initialize(opt)
-        if opt.n_gpus_gen == len(opt.gpu_ids):
-            modelG = nn.DataParallel(modelG, device_ids=opt.gpu_ids)
-            modelD = nn.DataParallel(modelD, device_ids=opt.gpu_ids)
-            # flowNet = nn.DataParallel(flowNet, device_ids=opt.gpu_ids)
-        else:
-            if opt.batchSize == 1:
-                gpu_split_id = opt.n_gpus_gen + 1
-                modelG = nn.DataParallel(modelG, device_ids=opt.gpu_ids[0:1])
-            else:
-                gpu_split_id = opt.n_gpus_gen
-                modelG = nn.DataParallel(modelG, device_ids=opt.gpu_ids[:gpu_split_id])
-            modelD = nn.DataParallel(modelD, device_ids=opt.gpu_ids[gpu_split_id:] + [opt.gpu_ids[0]])
-            # flowNet = nn.DataParallel(flowNet, device_ids=[opt.gpu_ids[0]] + opt.gpu_ids[gpu_split_id:])
+        # if opt.isTrain and len(opt.gpu_ids):
+        #     # flowNet.initialize(opt)
+        #     if opt.n_gpus_gen == len(opt.gpu_ids):
+        #         modelG = nn.DataParallel(modelG, device_ids=opt.gpu_ids)
+        #         modelD = nn.DataParallel(modelD, device_ids=opt.gpu_ids)
+        #         # flowNet = nn.DataParallel(flowNet, device_ids=opt.gpu_ids)
+        #     else:
+        #         if opt.batchSize == 1:
+        #             gpu_split_id = opt.n_gpus_gen + 1
+        #             modelG = nn.DataParallel(modelG, device_ids=opt.gpu_ids[0:1])
+        #         else:
+        #             gpu_split_id = opt.n_gpus_gen
+        #             modelG = nn.DataParallel(modelG, device_ids=opt.gpu_ids[:gpu_split_id])
+        #         modelD = nn.DataParallel(modelD, device_ids=opt.gpu_ids[gpu_split_id:] + [opt.gpu_ids[0]])
+        #         # flowNet = nn.DataParallel(flowNet, device_ids=[opt.gpu_ids[0]] + opt.gpu_ids[gpu_split_id:])
         return [modelG, modelD]
     else:
         # flowNet.initialize(opt)
@@ -47,10 +52,9 @@ def create_model(opt):
 
 
 class NightCity(pl.LightningModule):
-    def __init__(self, model_d, model_g, opt):
+    def __init__(self, opt):
         super().__init__()
-        self.model_d = model_d
-        self.model_g = model_g
+        self.modelG, self.modelD = create_model(opt)
         self.opt = opt
         self.tIn = opt.tIn
         self.tOut = opt.tOut
@@ -58,7 +62,8 @@ class NightCity(pl.LightningModule):
     def forward(self):
         pass
 
-    def training_step(self, batch, batch_idx):
+    # added optimizer_idx needed for multiple optimizers TODO: understand it
+    def training_step(self, batch, batch_idx, optimizer_idx):
         # TODO: tensorboard
         # total_steps += opt.batchSize
         # # print("idx = ", idx)
@@ -165,18 +170,52 @@ class NightCity(pl.LightningModule):
         #     np.savetxt(iter_path, (epoch, epoch_iter), delimiter=',', fmt='%d')
 
     def configure_optimizers(self):
-        optimizer_G = self.modelG.module.optimizer_G
-        optimizer_D_T = self.modelD.module.optimizer_D_T
-        scheduler_G = LambdaLR(optimizer_G, self.modelG.module.update_learning_rate)
-        scheduler_D_T = LambdaLR(optimizer_D_T, self.modelD.module.update_learning_rate)
+        optimizer_G = self.modelG.optimizer_G
+        optimizer_D_T = self.modelD.optimizer_D_T
+        scheduler_G = LambdaLR(optimizer_G, lr_lambda=self.modelG.update_learning_rate)
+        scheduler_D_T = LambdaLR(optimizer_D_T, lr_lambda=self.modelD.update_learning_rate)
         return [optimizer_G, optimizer_D_T], [scheduler_G, scheduler_D_T]
 
 
-    def prepare_data(self) -> None:
-        super().prepare_data()
+def video_transform(video, image_transform):
+    vid = []
+    for im in video:
+        vid.append(image_transform(im))
+
+    vid = torch.stack(vid).permute(1, 0, 2, 3)
+
+    return vid
+
+
+def cut_channel(x):
+    return x[:6, ::]
 
 
 if __name__ == '__main__':
+    # ------------some meta data to change imported from our mocogan setup------------
+    n_channels = 6
+    video_batch = 6
+    mean_tuple = tuple([0.5] * 6)
+    std_tuple = tuple([0.5] * 6)
+    image_transforms = transforms.Compose([
+        transforms.ToTensor(),
+        cut_channel,
+        transforms.Normalize(mean_tuple, std_tuple),
+    ])
+    video_transforms = functools.partial(video_transform, image_transform=image_transforms)
+    data_folder = './data_example/doom/'
+    # ------------------end of meta data----------------------
+
+    # old config tool
     opt = TrainOptions().parse()
-    modelG, modelD = create_model(opt)
-    model = NightCity(modelG, modelD, opt)
+    # creating the part of the model
+    model = NightCity(opt)
+    # datasets Loader set up TODO: arg parser for folder of data
+    dataset = data.VideoFolderDataset(data_folder, cache=os.path.join(data_folder, 'local.db'))
+    video_dataset = data.VideoDataset(dataset, 16, 2, video_transforms)
+    video_loader = DataLoader(video_dataset, batch_size=video_batch, drop_last=True, num_workers=2, shuffle=True)
+
+    dataloader = video_loader  # TODO: add a dataloader
+    # pytorch lightning trainer for training the model
+    trainer = pl.Trainer(min_epochs=10)
+    trainer.fit(model, dataloader)

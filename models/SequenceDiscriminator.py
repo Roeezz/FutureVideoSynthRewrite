@@ -24,6 +24,12 @@ class SequenceDiscriminator(BaseModel):
         self.tIn = opt.tIn
         self.tOut = opt.tOut
         self.gpu_ids = opt.gpu_ids
+
+        # added for lighting TODO:
+        self.optimizer_D_T = None
+        self.optimizer_G = None
+
+
         if not opt.debug:
             torch.backends.cudnn.benchmark = True
         # ### Initialize Single semantic frame discriminator
@@ -242,9 +248,12 @@ class SequenceDiscriminator(BaseModel):
         self.save_network(self.netD_T, 'D_T', label, self.gpu_ids)
 
     def update_learning_rate(self, epoch):
-        lr = self.opt.lr * (1 - (epoch - self.opt.niter) / self.opt.niter_decay)
-        for param_group in self.optimizer_D.param_groups:
-            param_group['lr'] = lr
-        print('update learning rate: %f -> %f' % (self.old_lr, lr))
-        self.old_lr = lr
+        # TODO remove this it for optimizer_D not for optimizer_D_T
+        # lr = self.opt.lr * (1 - (epoch - self.opt.niter) / self.opt.niter_decay)
+        # for param_group in self.optimizer_D.param_groups:
+        #     param_group['lr'] = lr
+        # print('update learning rate: %f -> %f' % (self.old_lr, lr))
+        # self.old_lr = lr
+        return 1.0
+
 
