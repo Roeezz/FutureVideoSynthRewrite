@@ -28,8 +28,6 @@ def define_G(input_nc, dataset, loasSize, tOut, ngf, gpu_ids=[]):
     netG = STN(input_nc, dataset, loasSize, tOut, ngf, norm_layer)
 
     # print_network(netG)
-    if len(gpu_ids) > 0:
-        netG.cuda(gpu_ids[0])
     netG.apply(weights_init)
     return netG
 

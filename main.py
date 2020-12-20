@@ -1,23 +1,15 @@
 import functools
 import os
-import time
-from typing import Optional, Callable
 
-import torch
 import pytorch_lightning as pl
-from torch.autograd import Variable
-from torch.optim import Optimizer
+import torch
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 
+import data.dataset as data
 from models.Generator import Generator
 from models.SequenceDiscriminator import SequenceDiscriminator
-import torch.nn as nn
-import data.dataset as data
-
-from options.base_options import BaseOptions
-from options.test_options import TestOptions
 from options.train_options import TrainOptions
 
 
@@ -58,6 +50,9 @@ class NightCity(pl.LightningModule):
         self.opt = opt
         self.tIn = opt.tIn
         self.tOut = opt.tOut
+        self.modelG_out = None
+        self.loss_G = None
+        self.loss_D_T = None
 
     def forward(self):
         pass
@@ -103,25 +98,34 @@ class NightCity(pl.LightningModule):
         tIn = self.tIn
         tOut = self.tOut
 
-        input_combine, input_semantic, input_flow, input_conf, target_back_map, \
-        input_mask, last_object, label_combine, label_mask = batch
+        if optimizer_idx == 0:
+            input_combine, input_semantic, input_flow, input_conf, target_back_map, \
+                input_mask, label_combine, label_mask = batch
 
-        warped_object, warped_mask, affine_matrix, pred_complete = self.modelG(input_combine, input_semantic,
-                                                                               input_flow,
-                                                                               input_conf, target_back_map, input_mask,
-                                                                               last_object)
-        losses = self.modelD(0, [warped_object, warped_mask, affine_matrix, pred_complete, label_combine, label_mask])
+            self.modelG_out = self.modelG(input_combine, input_semantic,
+                                          input_flow,
+                                          input_conf, target_back_map, input_mask)
+            input_combine, input_semantic, input_flow, input_conf, target_back_map, \
+                input_mask, last_object, label_combine, label_mask = batch
 
-        real_sequence, fake_sequence = self.modelD.module.gen_seq(input_mask, warped_mask, label_mask, tIn, tOut)
-        losses_T = self.modelD(1, [real_sequence, fake_sequence])
+            warped_object, warped_mask, affine_matrix, pred_complete = self.modelG_out
+            losses = self.modelD(0,
+                                 [warped_object, warped_mask, affine_matrix, pred_complete, label_combine, label_mask])
 
-        losses = [torch.mean(x) if x is not None else 0 for x in losses]
-        losses_T = [torch.mean(x) if x is not None else 0 for x in losses_T]
-        loss_dict = dict(zip(self.modelD.module.loss_names, losses))
-        loss_dict_T = dict(zip(self.modelD.module.loss_names_T, losses_T))
+            real_sequence, fake_sequence = self.modelD.module.gen_seq(input_mask, warped_mask, label_mask, tIn, tOut)
+            losses_T = self.modelD(1, [real_sequence, fake_sequence])
 
-        # collect losses
-        loss_G, loss_D, loss_D_T = self.modelD.module.get_losses(loss_dict, loss_dict_T)
+            losses = [torch.mean(x) if x is not None else 0 for x in losses]
+            losses_T = [torch.mean(x) if x is not None else 0 for x in losses_T]
+            loss_dict = dict(zip(self.modelD.module.loss_names, losses))
+            loss_dict_T = dict(zip(self.modelD.module.loss_names_T, losses_T))
+
+            # collect losses
+            self.loss_G, self.loss_D_T = self.modelD.module.get_losses(loss_dict, loss_dict_T)
+            return self.loss_G
+
+        if optimizer_idx == 1:
+            return self.lossD_T
 
         # TODO: tensorboard
         # ### display output images
@@ -170,10 +174,12 @@ class NightCity(pl.LightningModule):
         #     np.savetxt(iter_path, (epoch, epoch_iter), delimiter=',', fmt='%d')
 
     def configure_optimizers(self):
-        optimizer_G = self.modelG.optimizer_G
+        optimizer_G = self.modelG.module.optimizer_G
         optimizer_D_T = self.modelD.optimizer_D_T
-        scheduler_G = LambdaLR(optimizer_G, lr_lambda=self.modelG.update_learning_rate)
-        scheduler_D_T = LambdaLR(optimizer_D_T, lr_lambda=self.modelD.update_learning_rate)
+        scheduler_G = LambdaLR(optimizer_G,
+                               lr_lambda=lambda epoch: (1 - (epoch - self.opt.niter) / self.opt.niter_decay))
+        scheduler_D_T = LambdaLR(optimizer_D_T,
+                                 lr_lambda=lambda epoch: (1 - (epoch - self.opt.niter) / self.opt.niter_decay))
         return [optimizer_G, optimizer_D_T], [scheduler_G, scheduler_D_T]
 
 

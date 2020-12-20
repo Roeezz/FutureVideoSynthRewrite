@@ -71,12 +71,8 @@ class Generator(BaseModel):
         return input_s
 
     def forward(self, input_combine, input_semantic, input_flow, input_conf, target_back_map, input_mask, last_object):
-        tIn = self.opt.tIn
-        tOut = self.opt.tOut
         dataset = self.opt.dataset
-        gpu_split_id = self.opt.n_gpus_gen + 1
 
-        gpu_id = input_combine.get_device()
         # broadcast netG to all GPUs used for generator
         netG_0 = getattr(self, 'netG0')
 
@@ -84,17 +80,17 @@ class Generator(BaseModel):
 
         _, _, _, h, w = input_semantic.size()
         # Combine
-        combine_reshaped = input_combine.view(self.bs, -1, h, w).cuda(gpu_id)
+        combine_reshaped = input_combine.view(self.bs, -1, h, w)
         # Semantic
-        semantic_reshaped = input_semantic.view(self.bs, -1, h, w).cuda(gpu_id)
+        semantic_reshaped = input_semantic.view(self.bs, -1, h, w)
         # flow inputs
-        flow_reshaped = input_flow.view(self.bs, -1, h, w).cuda(gpu_id)
+        flow_reshaped = input_flow.view(self.bs, -1, h, w)
         # conf inputs
-        conf_reshaped = input_conf.view(self.bs, -1, h, w).cuda(gpu_id)
+        conf_reshaped = input_conf.view(self.bs, -1, h, w)
         # Binary mask
-        mask_reshaped = input_mask.view(self.bs, -1, h, w).cuda(gpu_id)
+        mask_reshaped = input_mask.view(self.bs, -1, h, w)
         # target future inpainted background
-        target_back_reshaped = target_back_map.view(self.bs, -1, h, w).cuda(gpu_id)
+        # target_back_reshaped = target_back_map.view(self.bs, -1, h, w)
 
         warped_object, warped_mask, affine_matrix, pred_complete \
             = netG_0.forward(self.loadSize, combine_reshaped, semantic_reshaped, flow_reshaped, conf_reshaped,
@@ -146,4 +142,3 @@ class Generator(BaseModel):
             param_group['lr'] = lr
         print('update learning rate: %f -> %f' % (self.old_lr, lr))
         self.old_lr = lr
-        return 1.0

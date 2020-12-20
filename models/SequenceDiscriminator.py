@@ -198,7 +198,6 @@ class SequenceDiscriminator(BaseModel):
         Translation_Loss = 0
         Shear_Loss = 0
         Smooth_Loss = 0
-        # Smooth_Loss = 0
         # sx sy rotation shear tx ty
         for i in range(self.tOut):
             # print("params =", affine_matrix[i].size())
@@ -247,13 +246,12 @@ class SequenceDiscriminator(BaseModel):
         # self.save_network(self.netD, 'D', label, self.gpu_ids)
         self.save_network(self.netD_T, 'D_T', label, self.gpu_ids)
 
-    def update_learning_rate(self, epoch):
-        # TODO remove this it for optimizer_D not for optimizer_D_T
-        # lr = self.opt.lr * (1 - (epoch - self.opt.niter) / self.opt.niter_decay)
-        # for param_group in self.optimizer_D.param_groups:
-        #     param_group['lr'] = lr
-        # print('update learning rate: %f -> %f' % (self.old_lr, lr))
-        # self.old_lr = lr
-        return 1.0
+    # TODO remove this it for optimizer_D not for optimizer_D_T
+    # def update_learning_rate(self, epoch):
+    # lr = self.opt.lr * (1 - (epoch - self.opt.niter) / self.opt.niter_decay)
+    # for param_group in self.optimizer_D.param_groups:
+    #     param_group['lr'] = lr
+    # print('update learning rate: %f -> %f' % (self.old_lr, lr))
+    # self.old_lr = lr
 
 

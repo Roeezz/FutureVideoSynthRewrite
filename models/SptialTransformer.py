@@ -75,7 +75,7 @@ class SpatialTransformer(nn.Module):
         bs = theta.size()[0]
         size = torch.empty(bs, 2, 3)
         # print(size.type())
-        affine_matrix = torch.zeros_like(size).cuda()
+        affine_matrix = torch.zeros_like(size)
         # print(affine_matrix.type())
         sx, sy = theta[:, 0], theta[:, 1]
         rotation, shear = theta[:, 2], theta[:, 3]
