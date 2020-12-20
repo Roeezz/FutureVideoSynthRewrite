@@ -99,7 +99,7 @@ class NightCity(pl.LightningModule):
         tOut = self.tOut
 
         if optimizer_idx == 0:
-            input_combine, input_semantic, input_flow, input_mask, label_combine, label_mask = batch
+            input_combine, input_semantic, input_flow, input_mask, label_combine, label_mask = batch.values()
 
             modelG_out = self.modelG(input_combine, input_semantic, input_flow, input_mask)
 
@@ -107,7 +107,7 @@ class NightCity(pl.LightningModule):
             losses = self.modelD(0,
                                  [warped_object, warped_mask, affine_matrix, pred_complete, label_combine, label_mask])
 
-            real_sequence, fake_sequence = self.modelD.module.gen_seq(input_mask, warped_mask, label_mask, tIn, tOut)
+            real_sequence, fake_sequence = self.modelD.gen_seq(input_mask, warped_mask, label_mask, tIn, tOut)
             losses_T = self.modelD(1, [real_sequence, fake_sequence])
 
             losses = [torch.mean(x) if x is not None else 0 for x in losses]
@@ -213,7 +213,7 @@ if __name__ == '__main__':
     model = NightCity(opt)
     # datasets Loader set up TODO: arg parser for folder of data
     dataset = data.VideoFolderDataset(data_folder, cache=os.path.join(data_folder, 'local.db'))
-    video_dataset = data.VideoDataset(dataset, 16, 2)
+    video_dataset = data.VideoDataset(dataset, 16, t_in=opt.tIn, t_out=opt.tOut, every_nth=1)
     video_loader = DataLoader(video_dataset, batch_size=video_batch, drop_last=True, num_workers=2, shuffle=True)
 
     dataloader = video_loader  # TODO: add a dataloader

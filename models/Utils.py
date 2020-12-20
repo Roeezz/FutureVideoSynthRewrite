@@ -35,8 +35,8 @@ def define_D(input_nc, ndf, n_layers_D, num_D=1, getIntermFeat=False, gpu_ids=[]
     norm_layer = get_norm_layer(norm_type='instance')
     netD = DC.MultiscaleDiscriminator(input_nc, ndf, n_layers_D, norm_layer, num_D, getIntermFeat)
     # print_network(netD)
-    if len(gpu_ids) > 0:
-        netD.cuda(gpu_ids[0])
+    # if len(gpu_ids) > 0:
+    #     netD.cuda(gpu_ids[0])
         # netD.cuda(gpu_ids[1])
     netD.apply(weights_init)
     return netD

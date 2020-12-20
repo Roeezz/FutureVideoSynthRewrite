@@ -24,7 +24,7 @@ class BaseOptions():
         #self.parser.add_argument('--SemanticRoot', type=str, default='/data/yue/cityscapes/leftImg8bit_sequence_semantic/')
         # 512p:
         #self.parser.add_argument('--InstanceRoot', type=str, default='/disk1/shared/dataset/cityscapes/cityscapes/InstanceMap_512p/')
-        self.parser.add_argument('--batchSize', type=int, default=1, help='input batch size')
+        self.parser.add_argument('--batchSize', type=int, default=6, help='input batch size')
         self.parser.add_argument('--dataset', type=str, default='cityscapes', help='input batch size')
         self.parser.add_argument('--loadSize', type=int, default=512, help='scale images to this size')
         self.parser.add_argument('--fineSize', type=int, default=512, help='then crop to this size')
@@ -107,8 +107,8 @@ class BaseOptions():
             self.opt.n_gpus_gen = len(self.opt.gpu_ids)
         
         # set gpu ids
-        if len(self.opt.gpu_ids) > 0:
-            torch.cuda.set_device(self.opt.gpu_ids[0])
+        # if len(self.opt.gpu_ids) > 0:
+        #     torch.cuda.set_device(self.opt.gpu_ids[0])
 
         args = vars(self.opt)
 

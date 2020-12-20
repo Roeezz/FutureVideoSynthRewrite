@@ -13,7 +13,7 @@ class BaseModel(torch.nn.Module):
         self.opt = opt
         self.gpu_ids = opt.gpu_ids
         self.isTrain = opt.isTrain
-        self.Tensor = torch.cuda.FloatTensor if self.gpu_ids else torch.Tensor
+        self.Tensor = torch.Tensor
         self.save_dir = os.path.join(opt.checkpoints_dir, opt.name)
         self.input = None
 
@@ -47,8 +47,8 @@ class BaseModel(torch.nn.Module):
         save_filename = '%s_net_%s.pth' % (epoch_label, network_label)
         save_path = os.path.join(self.save_dir, save_filename)
         torch.save(network.cpu().state_dict(), save_path)
-        if len(gpu_ids) and torch.cuda.is_available():
-            network.cuda(gpu_ids[0])
+        # if len(gpu_ids) and torch.cuda.is_available():
+        #     network.cuda(gpu_ids[0])
 
     def resolve_version(self):
         import torch._utils
@@ -121,7 +121,7 @@ class BaseModel(torch.nn.Module):
         if not hasattr(self, 'grid') or self.grid.size() != flow.size():
             self.grid = self.get_grid(b, h, w, gpu_id=flow.get_device(), dtype=flow.dtype)
         flow = torch.cat([flow[:, 0:1, :, :] / ((w - 1.0) / 2.0), flow[:, 1:2, :, :] / ((h - 1.0) / 2.0)], dim=1)
-        final_grid = (self.grid + flow).permute(0, 2, 3, 1).cuda(image.get_device())
+        final_grid = (self.grid + flow).permute(0, 2, 3, 1)
         output = self.grid_sample(image, final_grid)
         return output
 
@@ -139,4 +139,4 @@ class BaseModel(torch.nn.Module):
         t_grid.requires_grad = False
 
         if dtype == torch.float16: t_grid = t_grid.half()
-        return t_grid.cuda(gpu_id)
+        return t_grid

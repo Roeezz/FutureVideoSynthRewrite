@@ -9,7 +9,6 @@ import sys
 from collections import OrderedDict
 from torch.autograd import Variable
 
-
 # Generator
 from . import Utils
 from .BaseModel import BaseModel
@@ -27,23 +26,17 @@ class Generator(BaseModel):
         self.tOut = opt.tOut
         self.loadSize = opt.loadSize
 
-        # added for lighting TODO:
-        self.optimizer_D_T = None
-        self.optimizer_G = None
-
-
         if not opt.debug:
             torch.backends.cudnn.benchmark = True
 
         self.split_gpus = (self.opt.n_gpus_gen < len(self.opt.gpu_ids)) and (self.opt.batchSize == 1)
 
-        semantic_nc = opt.semantic_nc
-        image_nc = opt.image_nc
-        flow_nc = opt.flow_nc
-        conf_nc = 1
-        carmask_nc = 1
-        netG_input_nc = (semantic_nc + carmask_nc) * opt.tIn + (flow_nc + conf_nc) * (
-                    opt.tIn - 1) + image_nc * opt.tIn + image_nc * opt.tOut
+        semantic_nc = 1  # opt.semantic_nc
+        image_nc = 3  # opt.image_nc
+        flow_nc = 3  # opt.flow_nc
+        mask_nc = 1
+        # conf_nc = 1
+        netG_input_nc = (semantic_nc + mask_nc) * opt.tIn + (flow_nc) * (opt.tIn - 1) + image_nc * opt.tIn
         self.netG0 = Utils.define_G(netG_input_nc, opt.dataset, self.opt.loadSize, self.tOut, opt.ngf, self.gpu_ids)
         print('---------- Flow Generation Networks initialized -------------')
 
@@ -64,20 +57,18 @@ class Generator(BaseModel):
         self.bs, tIn, self.height, self.width = size[0], size[1], size[3], size[4]
 
         oneHot_size = (self.bs, tIn, self.opt.semantic_nc, self.height, self.width)
-        input_s = torch.cuda.FloatTensor(torch.Size(oneHot_size)).zero_()
+        input_s = torch.FloatTensor(torch.Size(oneHot_size)).zero_()
         input_s = input_s.scatter_(2, in_semantic.long(), 1.0)
         input_s = Variable(input_s)
 
         return input_s
 
-    def forward(self, input_combine, input_semantic, input_flow, input_conf, target_back_map, input_mask, last_object):
+    def forward(self, input_combine, input_semantic, input_flow, input_mask):
         dataset = self.opt.dataset
 
         # broadcast netG to all GPUs used for generator
         netG_0 = getattr(self, 'netG0')
-
-        input_semantic = self.encode_input(dataset, input_semantic)
-
+        # input_semantic = self.encode_input(dataset, input_semantic)
         _, _, _, h, w = input_semantic.size()
         # Combine
         combine_reshaped = input_combine.view(self.bs, -1, h, w)
@@ -85,16 +76,16 @@ class Generator(BaseModel):
         semantic_reshaped = input_semantic.view(self.bs, -1, h, w)
         # flow inputs
         flow_reshaped = input_flow.view(self.bs, -1, h, w)
-        # conf inputs
-        conf_reshaped = input_conf.view(self.bs, -1, h, w)
         # Binary mask
         mask_reshaped = input_mask.view(self.bs, -1, h, w)
+        # remove for now we dont use
+        # conf inputs
+        # conf_reshaped = input_conf.view(self.bs, -1, h, w)
         # target future inpainted background
         # target_back_reshaped = target_back_map.view(self.bs, -1, h, w)
 
         warped_object, warped_mask, affine_matrix, pred_complete \
-            = netG_0.forward(self.loadSize, combine_reshaped, semantic_reshaped, flow_reshaped, conf_reshaped,
-                             mask_reshaped, target_back_reshaped)
+            = netG_0.forward(self.loadSize, combine_reshaped, semantic_reshaped, flow_reshaped, mask_reshaped)
 
         return warped_object, warped_mask, affine_matrix, pred_complete
 
@@ -115,17 +106,17 @@ class Generator(BaseModel):
 
             _, _, _, h, w = input_semantic.size()
             # Combine
-            combine_reshaped = input_combine.view(self.bs, -1, h, w).cuda(gpu_id)
+            combine_reshaped = input_combine.view(self.bs, -1, h, w)
             # Semantic
-            semantic_reshaped = input_semantic.view(self.bs, -1, h, w).cuda(gpu_id)
+            semantic_reshaped = input_semantic.view(self.bs, -1, h, w)
             # flow inputs
-            flow_reshaped = input_flow.view(self.bs, -1, h, w).cuda(gpu_id)
+            flow_reshaped = input_flow.view(self.bs, -1, h, w)
             # conf inputs
-            conf_reshaped = input_conf.view(self.bs, -1, h, w).cuda(gpu_id)
+            conf_reshaped = input_conf.view(self.bs, -1, h, w)
             # Binary mask
-            mask_reshaped = input_mask.view(self.bs, -1, h, w).cuda(gpu_id)
+            mask_reshaped = input_mask.view(self.bs, -1, h, w)
             # target future inpainted background
-            target_back_reshaped = target_back_map.view(self.bs, -1, h, w).cuda(gpu_id)
+            target_back_reshaped = target_back_map.view(self.bs, -1, h, w)
 
             warped_object, warped_mask, affine_matrix, pred_complete \
                 = netG_0[0].forward(self.loadSize, combine_reshaped, semantic_reshaped, flow_reshaped, conf_reshaped,

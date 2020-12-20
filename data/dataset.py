@@ -51,7 +51,6 @@ class VideoFolderDataset(torch.utils.data.Dataset):
 class ImageDataset(torch.utils.data.Dataset):
     def __init__(self, dataset, transform=None):
         self.dataset = dataset
-
         self.transforms = transform if transform is not None else lambda x: x
 
     def __getitem__(self, item):
@@ -91,9 +90,11 @@ def general_transform(imgs, start_channel=0, end_channel=3):
 
 
 class VideoDataset(torch.utils.data.Dataset):
-    def __init__(self, dataset, video_length, every_nth=1):
+    def __init__(self, dataset, video_length, t_in, t_out, every_nth=1):
         self.dataset = dataset
         self.video_length = video_length
+        self.t_in = t_in
+        self.t_out = t_in + t_out
         self.every_nth = every_nth
 
     def __getitem__(self, item):
@@ -120,7 +121,13 @@ class VideoDataset(torch.utils.data.Dataset):
         optical_flow = general_transform(optical_flow)
         images = general_transform(selected)
         depth = general_transform(selected, 6, 7)
-        return {"images": images, "semantic": depth, "optical_flow": optical_flow}
+        mask = np.zeros_like(images)
+        mask[images > 0] = 1.0
+        mask = (mask[0, ...] + mask[1, ...] + mask[2, ...])/3.0
+        mask = mask.reshape((1, *mask.shape))
+        return {"images": images[:, :self.t_in, ...], "depth": depth[:, :self.t_in, ...],
+                "optical_flow": optical_flow[:, :self.t_in-1, ...], "input_mask": mask[:, :self.t_in, ...],
+                "label_images": images[:, self.t_in:self.t_out, ...], "label_mask": mask[:, self.t_in:self.t_out, ...]}
 
     def __len__(self):
         return len(self.dataset)

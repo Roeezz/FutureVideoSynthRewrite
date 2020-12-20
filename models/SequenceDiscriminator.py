@@ -25,11 +25,6 @@ class SequenceDiscriminator(BaseModel):
         self.tOut = opt.tOut
         self.gpu_ids = opt.gpu_ids
 
-        # added for lighting TODO:
-        self.optimizer_D_T = None
-        self.optimizer_G = None
-
-
         if not opt.debug:
             torch.backends.cudnn.benchmark = True
         # ### Initialize Single semantic frame discriminator
@@ -253,5 +248,3 @@ class SequenceDiscriminator(BaseModel):
     #     param_group['lr'] = lr
     # print('update learning rate: %f -> %f' % (self.old_lr, lr))
     # self.old_lr = lr
-
-
