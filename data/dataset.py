@@ -5,6 +5,8 @@ import numpy as np
 import torch.utils.data
 import tqdm
 from torchvision.datasets import DatasetFolder
+from torchvision.transforms import transforms
+
 from util.optical_flow import calc_optical_flow
 
 
@@ -72,12 +74,27 @@ class ImageDataset(torch.utils.data.Dataset):
         return self.dataset.cumsum[-1]
 
 
+def general_transform(imgs, start_channel=0, end_channel=3):
+    vid = []
+    channel_range = end_channel - start_channel
+    mean_tuple = tuple([0.5] * channel_range)
+    std_tuple = tuple([0.5] * channel_range)
+    for img in imgs:
+        img = torch.from_numpy(img)
+        img = img[:, :, start_channel:end_channel]
+        img = img.permute(2, 0, 1)
+        img = transforms.Normalize(mean_tuple, std_tuple)(img)
+        vid.append(img)
+
+    vid = torch.stack(vid).permute(1, 0, 2, 3)
+    return vid
+
+
 class VideoDataset(torch.utils.data.Dataset):
-    def __init__(self, dataset, video_length, every_nth=1, transform=None):
+    def __init__(self, dataset, video_length, every_nth=1):
         self.dataset = dataset
         self.video_length = video_length
         self.every_nth = every_nth
-        self.transforms = transform if transform is not None else lambda x: x
 
     def __getitem__(self, item):
         video, target = self.dataset[item]
@@ -99,8 +116,11 @@ class VideoDataset(torch.utils.data.Dataset):
 
         selected = video[subsequence_idx]
         optical_flow = calc_optical_flow(selected[:, :, :, 0:3])
-        images = self.transforms(selected)
-        return {"images": images, "optical_flow": optical_flow, "categories": target}
+        optical_flow = optical_flow.astype('float32')
+        optical_flow = general_transform(optical_flow)
+        images = general_transform(selected)
+        depth = general_transform(selected, 6, 7)
+        return {"images": images, "semantic": depth, "optical_flow": optical_flow}
 
     def __len__(self):
         return len(self.dataset)

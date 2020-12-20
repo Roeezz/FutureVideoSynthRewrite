@@ -99,16 +99,11 @@ class NightCity(pl.LightningModule):
         tOut = self.tOut
 
         if optimizer_idx == 0:
-            input_combine, input_semantic, input_flow, input_conf, target_back_map, \
-                input_mask, label_combine, label_mask = batch
+            input_combine, input_semantic, input_flow, input_mask, label_combine, label_mask = batch
 
-            self.modelG_out = self.modelG(input_combine, input_semantic,
-                                          input_flow,
-                                          input_conf, target_back_map, input_mask)
-            input_combine, input_semantic, input_flow, input_conf, target_back_map, \
-                input_mask, last_object, label_combine, label_mask = batch
+            modelG_out = self.modelG(input_combine, input_semantic, input_flow, input_mask)
 
-            warped_object, warped_mask, affine_matrix, pred_complete = self.modelG_out
+            warped_object, warped_mask, affine_matrix, pred_complete = modelG_out
             losses = self.modelD(0,
                                  [warped_object, warped_mask, affine_matrix, pred_complete, label_combine, label_mask])
 
@@ -174,7 +169,7 @@ class NightCity(pl.LightningModule):
         #     np.savetxt(iter_path, (epoch, epoch_iter), delimiter=',', fmt='%d')
 
     def configure_optimizers(self):
-        optimizer_G = self.modelG.module.optimizer_G
+        optimizer_G = self.modelG.optimizer_G
         optimizer_D_T = self.modelD.optimizer_D_T
         scheduler_G = LambdaLR(optimizer_G,
                                lr_lambda=lambda epoch: (1 - (epoch - self.opt.niter) / self.opt.niter_decay))
@@ -218,10 +213,10 @@ if __name__ == '__main__':
     model = NightCity(opt)
     # datasets Loader set up TODO: arg parser for folder of data
     dataset = data.VideoFolderDataset(data_folder, cache=os.path.join(data_folder, 'local.db'))
-    video_dataset = data.VideoDataset(dataset, 16, 2, video_transforms)
+    video_dataset = data.VideoDataset(dataset, 16, 2)
     video_loader = DataLoader(video_dataset, batch_size=video_batch, drop_last=True, num_workers=2, shuffle=True)
 
     dataloader = video_loader  # TODO: add a dataloader
     # pytorch lightning trainer for training the model
-    trainer = pl.Trainer(min_epochs=10)
+    trainer = pl.Trainer(min_epochs=10, gpus=1)
     trainer.fit(model, dataloader)
