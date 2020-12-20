@@ -5,6 +5,7 @@ import numpy as np
 import torch.utils.data
 import tqdm
 from torchvision.datasets import DatasetFolder
+from util.optical_flow import calc_optical_flow
 
 
 def npy_loader(path):
@@ -97,8 +98,9 @@ class VideoDataset(torch.utils.data.Dataset):
             raise Exception("Length is too short id - {}, len - {}").format(self.dataset[item], video_len)
 
         selected = video[subsequence_idx]
-
-        return {"images": self.transforms(selected), "categories": target}
+        optical_flow = calc_optical_flow(selected[:, :, :, 0:3])
+        images = self.transforms(selected)
+        return {"images": images, "optical_flow": optical_flow, "categories": target}
 
     def __len__(self):
         return len(self.dataset)
