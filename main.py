@@ -68,34 +68,39 @@ class NightCity(pl.LightningModule):
 
         tIn = self.tIn
         tOut = self.tOut
+        optimizer_G, optimizer_D_T = self.optimizers()
+        input_combine, input_semantic, input_flow, input_mask, label_combine, label_mask = batch.values()
 
-        if optimizer_idx == 0:
-            input_combine, input_semantic, input_flow, input_mask, label_combine, label_mask = batch.values()
+        modelG_out = self.modelG(input_combine, input_semantic, input_flow, input_mask)
 
-            modelG_out = self.modelG(input_combine, input_semantic, input_flow, input_mask)
+        warped_object, warped_mask, affine_matrix, pred_complete = modelG_out
+        losses = self.modelD(0,
+                             [warped_object, warped_mask, affine_matrix, pred_complete, label_combine, label_mask])
 
-            warped_object, warped_mask, affine_matrix, pred_complete = modelG_out
-            losses = self.modelD(0,
-                                 [warped_object, warped_mask, affine_matrix, pred_complete, label_combine, label_mask])
+        real_sequence, fake_sequence = self.modelD.gen_seq(input_mask, warped_mask, label_mask, tIn, tOut)
+        losses_T = self.modelD(1, [real_sequence, fake_sequence])
 
-            real_sequence, fake_sequence = self.modelD.gen_seq(input_mask, warped_mask, label_mask, tIn, tOut)
-            losses_T = self.modelD(1, [real_sequence, fake_sequence])
+        losses = [torch.mean(x) if x is not None else 0 for x in losses]
+        losses_T = [torch.mean(x) if x is not None else 0 for x in losses_T]
+        # TODO: find how they used it
+        # loss_dict = dict(zip(self.modelD.model.loss_names, losses))
+        loss_dict = dict(zip(['Image', 'Scale', 'Rotation', 'Shear',
+                              'Translation', 'smooth'], losses))
+        # loss_dict_T = dict(zip(self.modelD.model.loss_names_T, losses_T))
+        loss_dict_T = dict(zip(['G_T_GAN', 'D_T_real', 'D_T_fake'], losses_T))
 
-            losses = [torch.mean(x) if x is not None else 0 for x in losses]
-            losses_T = [torch.mean(x) if x is not None else 0 for x in losses_T]
-            # TODO: find how they used it
-            # loss_dict = dict(zip(self.modelD.model.loss_names, losses))
-            loss_dict = dict(zip(['Image', 'Scale', 'Rotation', 'Shear',
-                                  'Translation', 'smooth'], losses))
-            # loss_dict_T = dict(zip(self.modelD.model.loss_names_T, losses_T))
-            loss_dict_T = dict(zip(['G_T_GAN', 'D_T_real', 'D_T_fake'], losses_T))
+        # collect losses
+        self.loss_G, self.loss_D_T = self.modelD.get_losses(loss_dict, loss_dict_T)
 
-            # collect losses
-            self.loss_G, self.loss_D_T = self.modelD.get_losses(loss_dict, loss_dict_T)
-            return self.loss_G
+        self.manual_backward(self.loss_G, optimizer_G)
+        optimizer_G.step()
 
-        if optimizer_idx == 1:
-            return self.loss_D_T
+        self.manual_backward(self.loss_D_T, optimizer_D_T)
+        optimizer_D_T.step()
+        print(self.loss_G.item(), ' loss_G')
+        print(self.loss_D_T.item(), ' loss_D_T')
+        self.log('loss_G', self.loss_G)
+        self.log('loss_D_T', self.loss_D_T)
 
         # TODO: tensorboard
         # ### display output images
@@ -193,5 +198,5 @@ if __name__ == '__main__':
 
     dataloader = video_loader  # TODO: add a dataloader
     # pytorch lightning trainer for training the model
-    trainer = pl.Trainer(min_epochs=10, gpus=1)
+    trainer = pl.Trainer(min_epochs=10, gpus=1, automatic_optimization=False)
     trainer.fit(model, dataloader)
