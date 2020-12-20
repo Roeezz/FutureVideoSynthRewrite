@@ -43,7 +43,7 @@ class GANLoss(nn.Module):
             loss = 0
             for input_i in input:
                 pred = input_i[-1]
-                target_tensor = self.get_target_tensor(pred, target_is_real)
+                target_tensor = self.get_target_tensor(pred, target_is_real).cuda()
                 loss += self.loss(pred, target_tensor)
             return loss
         else:

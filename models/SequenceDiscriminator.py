@@ -178,8 +178,9 @@ class SequenceDiscriminator(BaseModel):
 
         # RGB Loss
         rgb_loss = 0
+        # TODO: replace the order of channels and frames
         for i in range(self.tOut):
-            rgb_loss += self.criterionWarp(warped_object[i], label_combine[:, i, ...], target_mask[:, i, ...])
+            rgb_loss += self.criterionWarp(warped_object[i], label_combine[:, :, i, ...], target_mask[:, :, i, ...])
         rgb_loss *= lambda_image
         # loss_D_real, loss_D_fake, loss_G_GAN = self.compute_loss_D(self.netD, pred_complete, label_combine, warped_mask,
         #                                                            target_mask)

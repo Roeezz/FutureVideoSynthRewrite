@@ -13,40 +13,11 @@ from models.SequenceDiscriminator import SequenceDiscriminator
 from options.train_options import TrainOptions
 
 
-def create_model(opt):
-    modelG = Generator(opt)
-    modelD = None
-    if opt.isTrain:
-        modelD = SequenceDiscriminator(opt)
-
-        # from .pwcnet import PWCNet
-        # flowNet = PWCNet()
-
-        # if opt.isTrain and len(opt.gpu_ids):
-        #     # flowNet.initialize(opt)
-        #     if opt.n_gpus_gen == len(opt.gpu_ids):
-        #         modelG = nn.DataParallel(modelG, device_ids=opt.gpu_ids)
-        #         modelD = nn.DataParallel(modelD, device_ids=opt.gpu_ids)
-        #         # flowNet = nn.DataParallel(flowNet, device_ids=opt.gpu_ids)
-        #     else:
-        #         if opt.batchSize == 1:
-        #             gpu_split_id = opt.n_gpus_gen + 1
-        #             modelG = nn.DataParallel(modelG, device_ids=opt.gpu_ids[0:1])
-        #         else:
-        #             gpu_split_id = opt.n_gpus_gen
-        #             modelG = nn.DataParallel(modelG, device_ids=opt.gpu_ids[:gpu_split_id])
-        #         modelD = nn.DataParallel(modelD, device_ids=opt.gpu_ids[gpu_split_id:] + [opt.gpu_ids[0]])
-        #         # flowNet = nn.DataParallel(flowNet, device_ids=[opt.gpu_ids[0]] + opt.gpu_ids[gpu_split_id:])
-        return [modelG, modelD]
-    else:
-        # flowNet.initialize(opt)
-        return [modelG]
-
-
 class NightCity(pl.LightningModule):
     def __init__(self, opt):
         super().__init__()
-        self.modelG, self.modelD = create_model(opt)
+        self.modelG = Generator(opt)
+        self.modelD = SequenceDiscriminator(opt)
         self.opt = opt
         self.tIn = opt.tIn
         self.tOut = opt.tOut
@@ -112,15 +83,19 @@ class NightCity(pl.LightningModule):
 
             losses = [torch.mean(x) if x is not None else 0 for x in losses]
             losses_T = [torch.mean(x) if x is not None else 0 for x in losses_T]
-            loss_dict = dict(zip(self.modelD.module.loss_names, losses))
-            loss_dict_T = dict(zip(self.modelD.module.loss_names_T, losses_T))
+            # TODO: find how they used it
+            # loss_dict = dict(zip(self.modelD.model.loss_names, losses))
+            loss_dict = dict(zip(['Image', 'Scale', 'Rotation', 'Shear',
+                                  'Translation', 'smooth'], losses))
+            # loss_dict_T = dict(zip(self.modelD.model.loss_names_T, losses_T))
+            loss_dict_T = dict(zip(['G_T_GAN', 'D_T_real', 'D_T_fake'], losses_T))
 
             # collect losses
-            self.loss_G, self.loss_D_T = self.modelD.module.get_losses(loss_dict, loss_dict_T)
+            self.loss_G, self.loss_D_T = self.modelD.get_losses(loss_dict, loss_dict_T)
             return self.loss_G
 
         if optimizer_idx == 1:
-            return self.lossD_T
+            return self.loss_D_T
 
         # TODO: tensorboard
         # ### display output images
