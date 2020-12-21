@@ -6,7 +6,7 @@ import torch
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
-
+from pytorch_lightning import loggers as pl_loggers
 import data.dataset as data
 from models.Generator import Generator
 from models.SequenceDiscriminator import SequenceDiscriminator
@@ -99,8 +99,8 @@ class NightCity(pl.LightningModule):
         optimizer_D_T.step()
         print(self.loss_G.item(), ' loss_G')
         print(self.loss_D_T.item(), ' loss_D_T')
-        self.log('loss_G', self.loss_G)
-        self.log('loss_D_T', self.loss_D_T)
+        self.log('loss_G', self.loss_G, on_epoch=True)
+        self.log('loss_D_T', self.loss_D_T, on_epoch=True)
 
         # TODO: tensorboard
         # ### display output images
@@ -198,5 +198,6 @@ if __name__ == '__main__':
 
     dataloader = video_loader  # TODO: add a dataloader
     # pytorch lightning trainer for training the model
-    trainer = pl.Trainer(min_epochs=10, gpus=1, automatic_optimization=False)
+    tb_logger = pl_loggers.TensorBoardLogger('lightning_logs/')
+    trainer = pl.Trainer(min_epochs=10, gpus=1, logger=tb_logger, automatic_optimization=False)
     trainer.fit(model, dataloader)
