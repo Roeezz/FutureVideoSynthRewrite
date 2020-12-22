@@ -31,9 +31,9 @@ class Generator(BaseModel):
 
         self.split_gpus = (self.opt.n_gpus_gen < len(self.opt.gpu_ids)) and (self.opt.batchSize == 1)
 
-        semantic_nc = 1  # opt.semantic_nc
+        semantic_nc = 0  # opt.semantic_nc
         image_nc = 3  # opt.image_nc
-        flow_nc = 3  # opt.flow_nc
+        flow_nc = 0  # opt.flow_nc
         mask_nc = 1
         # conf_nc = 1
         netG_input_nc = (semantic_nc + mask_nc) * opt.tIn + (flow_nc) * (opt.tIn - 1) + image_nc * opt.tIn
@@ -83,9 +83,11 @@ class Generator(BaseModel):
         # conf_reshaped = input_conf.view(self.bs, -1, h, w)
         # target future inpainted background
         # target_back_reshaped = target_back_map.view(self.bs, -1, h, w)
-
+        last_obj = input_combine[:, :, -1, ...]
+        last_mask = input_mask[:, :, -1, ...]
         warped_object, warped_mask, affine_matrix, pred_complete \
-            = netG_0.forward(self.loadSize, combine_reshaped, semantic_reshaped, flow_reshaped, mask_reshaped)
+            = netG_0.forward(self.loadSize, combine_reshaped, semantic_reshaped, flow_reshaped, mask_reshaped, last_obj,
+                             last_mask)
 
         return warped_object, warped_mask, affine_matrix, pred_complete
 

@@ -3,6 +3,7 @@ from torch import nn
 from torch.nn import functional as F
 import pytorch_lightning as pl
 import copy
+import matplotlib.pyplot as plt
 
 
 class SpatialTransformer(nn.Module):
@@ -40,23 +41,18 @@ class SpatialTransformer(nn.Module):
         encoder += [nn.Conv2d(ngf * 2, ngf * 4, kernel_size=[3, 3], stride=1), norm_layer(ngf * 4), activation]
         encoder += [nn.Conv2d(ngf * 4, ngf * 4, kernel_size=[3, 3], stride=1), norm_layer(ngf * 4), activation]
         encoder += [nn.MaxPool2d(kernel_size=[3, 3], stride=2)]
-        # Conv4 TODO: show sharf this conve layer
-        # encoder += [nn.Conv2d(ngf * 4, ngf * 8, kernel_size=[3, 3], stride=1), norm_layer(ngf * 8), activation]
-        # encoder += [nn.Conv2d(ngf * 8, ngf * 8, kernel_size=[3, 3], stride=1), norm_layer(ngf * 8), activation]
-        # encoder += [nn.MaxPool2d(kernel_size=[3, 3], stride=2)]
+        # Conv4
+        encoder += [nn.Conv2d(ngf * 4, ngf * 8, kernel_size=[3, 3], stride=1), norm_layer(ngf * 8), activation]
+        encoder += [nn.Conv2d(ngf * 8, ngf * 8, kernel_size=[3, 3], stride=1), norm_layer(ngf * 8), activation]
+        encoder += [nn.MaxPool2d(kernel_size=[3, 3], stride=2)]
 
-        # TODO:temp conv layer for debug
-        encoder += [nn.Conv2d(ngf * 4, 500, kernel_size=[3, 3], stride=1), norm_layer(500), activation]
+        # Conv5
+        encoder += [nn.Conv2d(ngf * 8, 500, kernel_size=[3, 3], stride=1), norm_layer(500), activation]
         encoder += [nn.Conv2d(500, 500, kernel_size=[3, 3], stride=1), norm_layer(500), activation]
-        encoder += [nn.AvgPool2d(kernel_size=[4, 4], stride=[4, 4])]
-
-        # Conv5 TODO: show sharf this conve layer
-        # encoder += [nn.Conv2d(ngf * 8, 500, kernel_size=[3, 3], stride=1), norm_layer(500), activation]
-        # encoder += [nn.Conv2d(500, 500, kernel_size=[3, 3], stride=1), norm_layer(500), activation]
-        # if dataset == 'cityscapes':
-        #     encoder += [nn.AvgPool2d(kernel_size=[8, 16], stride=[8, 16])]
-        # else:
-        #     encoder += [nn.AvgPool2d(kernel_size=[8, 26], stride=[8, 26])]
+        if dataset == 'cityscapes':
+            encoder += [nn.AvgPool2d(kernel_size=[7, 23], stride=[7, 23])]
+        else:
+            encoder += [nn.AvgPool2d(kernel_size=[8, 26], stride=[8, 26])]
 
         # Regressor for the 3 * 2 affine matrix
         self.fc_loc_0 = nn.Sequential(
@@ -107,11 +103,16 @@ class SpatialTransformer(nn.Module):
 
     def warp(self, affine_matrix, x, mask):
         # added cuda for gpu
-        grid = F.affine_grid(affine_matrix, x.size()).cuda()
-        t_x = F.grid_sample(x, grid).cuda()
-        mask_grid = F.affine_grid(affine_matrix, mask.size()).cuda()
-        t_mask = F.grid_sample(mask, mask_grid).cuda()
+
+        grid = F.affine_grid(affine_matrix, x.size(), align_corners=True).cuda()
+        t_x = F.grid_sample(x, grid, align_corners=True).cuda()
+        mask_grid = F.affine_grid(affine_matrix, mask.size(), align_corners=True).cuda()
+        t_mask = F.grid_sample(mask, mask_grid, align_corners=True).cuda()
         t_mask = self.clip_mask(t_mask).cuda()
+        # plt.imshow(x[0].permute(1, 2, 0).cpu())
+        # plt.show()
+        # plt.imshow(x[0].permute(1, 2, 0).cpu())
+        # plt.show()
         return t_x, t_mask
 
     # Spatial transformer network forward function
@@ -119,9 +120,7 @@ class SpatialTransformer(nn.Module):
         params = self.encoder(feature)
         # print("params = ", params.size())
         print(params.shape, 'params')
-        # TODO: replace it back affter debuging
         params = params.view(-1, 500)
-        # params = params.view(-1, 1024)
         # print("params = ", params.size())
         # STN for object timestamp t + 1
         trans_x = []
@@ -166,14 +165,13 @@ class SpatialTransformer(nn.Module):
         trans_x.append(x_4)
         trans_mask.append(mask_4)
         affine_matrix.append(theta_4)
-
         return trans_x, trans_mask, affine_matrix
 
     def forward(self, loadSize, combine_reshaped, semantic_reshaped, flow_reshaped, mask_reshaped,
                 last_object=None, last_mask=None):
         # added cuda for gpu
         input = torch.cat(
-            [combine_reshaped.cuda(), semantic_reshaped.cuda(), flow_reshaped.cuda(), mask_reshaped.cuda()],
+            [combine_reshaped.cuda(), mask_reshaped.cuda()],
             dim=1)
         if last_object is not None:
             last_object = last_object
@@ -182,6 +180,10 @@ class SpatialTransformer(nn.Module):
             last_object = combine_reshaped[:, -3:, :, :] * mask_reshaped[:, -1:, :, :].repeat(1, 3, 1, 1)
             last_mask = mask_reshaped[:, -1:, ...]
         # print("input size = ", input.size())
+        # plt.imshow(combine_reshaped.view((6, 3, 4, 256, 512))[:, :, 3, ...].cpu().permute(1, 2, 0))
+        # plt.show()
+        # plt.imshow(combine_reshaped[0, -3:, :, :].cpu().permute(1, 2, 0))
+        # plt.show()
         warped_x, warped_mask, affine_matrix = self.stn(last_object, last_mask, input, loadSize)
         pred_complete = []
         for i in range(self.tOut):
