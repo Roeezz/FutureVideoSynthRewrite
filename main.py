@@ -8,8 +8,8 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 from pytorch_lightning import loggers as pl_loggers
 import data.dataset as data
-from models.Generator import Generator
-from models.SequenceDiscriminator import SequenceDiscriminator
+from lightningModels.Generator import Generator
+from lightningModels.SequenceDiscriminator import SequenceDiscriminator
 from options.train_options import TrainOptions
 
 
