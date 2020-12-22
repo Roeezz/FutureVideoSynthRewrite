@@ -65,12 +65,14 @@ class NightCity(pl.LightningModule):
         # last_object = last_object.float().cuda()
         # label_combine = label_combine.float().cuda()
         # label_mask = label_mask.float().cuda()
+        tensorboard = self.logger.experiment
 
         tIn = self.tIn
         tOut = self.tOut
         optimizer_G, optimizer_D_T = self.optimizers()
         input_combine, input_semantic, input_flow, input_mask, label_combine, label_mask = batch.values()
 
+        tensorboard.add_video('input_combine', input_combine.data.permute(0, 2, 1, 3, 4), self.current_epoch, 2)
         modelG_out = self.modelG(input_combine, input_semantic, input_flow, input_mask)
 
         warped_object, warped_mask, affine_matrix, pred_complete = modelG_out
@@ -101,6 +103,8 @@ class NightCity(pl.LightningModule):
         print(self.loss_D_T.item(), ' loss_D_T')
         self.log('loss_G', self.loss_G, on_epoch=True)
         self.log('loss_D_T', self.loss_D_T, on_epoch=True)
+        vid_log = torch.stack(warped_object).permute(1, 0, 2, 3, 4).data
+        tensorboard.add_video('warped_object', vid_log, self.current_epoch, 2)
 
         # TODO: tensorboard
         # ### display output images
@@ -199,5 +203,5 @@ if __name__ == '__main__':
     dataloader = video_loader  # TODO: add a dataloader
     # pytorch lightning trainer for training the model
     tb_logger = pl_loggers.TensorBoardLogger('lightning_logs/')
-    trainer = pl.Trainer(min_epochs=10, gpus=1, logger=tb_logger, automatic_optimization=False)
+    trainer = pl.Trainer(gpus=1, logger=tb_logger, automatic_optimization=False)
     trainer.fit(model, dataloader)

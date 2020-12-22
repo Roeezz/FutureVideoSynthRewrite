@@ -75,14 +75,14 @@ class ImageDataset(torch.utils.data.Dataset):
 
 def general_transform(imgs, start_channel=0, end_channel=3):
     vid = []
-    channel_range = end_channel - start_channel
-    mean_tuple = tuple([0.5] * channel_range)
-    std_tuple = tuple([0.5] * channel_range)
+    # channel_range = end_channel - start_channel
+    # mean_tuple = tuple([0.5] * channel_range)
+    # std_tuple = tuple([0.5] * channel_range)
     for img in imgs:
         img = torch.from_numpy(img)
         img = img[:, :, start_channel:end_channel]
         img = img.permute(2, 0, 1)
-        img = transforms.Normalize(mean_tuple, std_tuple)(img)
+        # img = transforms.Normalize(mean_tuple, std_tuple)(img)
         vid.append(img)
 
     vid = torch.stack(vid)
@@ -119,14 +119,14 @@ class VideoDataset(torch.utils.data.Dataset):
         optical_flow = calc_optical_flow(selected[:, :, :, 0:3])
         optical_flow = optical_flow.astype('float32')
         optical_flow = general_transform(optical_flow)
-        images = general_transform(selected)
+        images = general_transform(selected/255)
         depth = general_transform(selected, 6, 7)
         mask = np.zeros_like(images)
         mask[images > 0] = 1.0
-        mask = (mask[0, ...] + mask[1, ...] + mask[2, ...])/3.0
+        mask = (mask[0, ...] + mask[1, ...] + mask[2, ...]) / 3.0
         mask = mask.reshape((1, *mask.shape))
         return {"images": images[:, :self.t_in, ...], "depth": depth[:, :self.t_in, ...],
-                "optical_flow": optical_flow[:, :self.t_in-1, ...], "input_mask": mask[:, :self.t_in, ...],
+                "optical_flow": optical_flow[:, :self.t_in - 1, ...], "input_mask": mask[:, :self.t_in, ...],
                 "label_images": images[:, self.t_in:self.t_out, ...], "label_mask": mask[:, self.t_in:self.t_out, ...]}
 
     def __len__(self):

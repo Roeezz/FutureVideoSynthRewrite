@@ -152,7 +152,7 @@ class SequenceDiscriminator(BaseModel):
         lambda_rotation = self.opt.lambda_rotation
         lambda_translationx = self.opt.lambda_translationx
         lambda_translationy = self.opt.lambda_translationy
-        lambda_smooth = self.opt.lambda_smooth
+        lambda_smooth = 0.1#self.opt.lambda_smooth
         lambda_image = self.opt.lambda_image
 
         if scale_T > 0:
