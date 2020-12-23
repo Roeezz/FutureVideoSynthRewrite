@@ -119,7 +119,6 @@ class SpatialTransformer(nn.Module):
     def stn(self, x, mask, feature, loadSize):
         params = self.encoder(feature)
         # print("params = ", params.size())
-        print(params.shape, 'params')
         params = params.view(-1, 500)
         # print("params = ", params.size())
         # STN for object timestamp t + 1

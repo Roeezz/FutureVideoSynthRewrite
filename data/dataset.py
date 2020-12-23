@@ -85,7 +85,7 @@ def general_transform(imgs, start_channel=0, end_channel=3):
         # img = transforms.Normalize(mean_tuple, std_tuple)(img)
         vid.append(img)
 
-    vid = torch.stack(vid)
+    vid = torch.stack(vid).permute(1, 0, 2, 3)
     return vid
 
 

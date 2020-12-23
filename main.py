@@ -8,8 +8,8 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 from pytorch_lightning import loggers as pl_loggers
 import data.dataset as data
-from lightningModels.Generator import Generator
-from lightningModels.SequenceDiscriminator import SequenceDiscriminator
+from models.Generator import Generator
+from models.SequenceDiscriminator import SequenceDiscriminator
 from options.train_options import TrainOptions
 
 
@@ -72,7 +72,6 @@ class NightCity(pl.LightningModule):
         optimizer_G, optimizer_D_T = self.optimizers()
         input_combine, input_semantic, input_flow, input_mask, label_combine, label_mask = batch.values()
 
-        tensorboard.add_video('input_combine', input_combine.data.permute(0, 2, 1, 3, 4), self.current_epoch, 2)
         modelG_out = self.modelG(input_combine, input_semantic, input_flow, input_mask)
 
         warped_object, warped_mask, affine_matrix, pred_complete = modelG_out
@@ -99,12 +98,23 @@ class NightCity(pl.LightningModule):
 
         self.manual_backward(self.loss_D_T, optimizer_D_T)
         optimizer_D_T.step()
+        print()  # empty line for the looks
         print(self.loss_G.item(), ' loss_G')
         print(self.loss_D_T.item(), ' loss_D_T')
         self.log('loss_G', self.loss_G, on_epoch=True)
         self.log('loss_D_T', self.loss_D_T, on_epoch=True)
+
+        tensorboard.add_video('input_combine', input_combine.data.permute(0, 2, 1, 3, 4), self.current_epoch, 2)
+        tensorboard.add_video('label_combine', label_combine.data.permute(0, 2, 1, 3, 4), self.current_epoch, 2)
         vid_log = torch.stack(warped_object).permute(1, 0, 2, 3, 4).data
         tensorboard.add_video('warped_object', vid_log, self.current_epoch, 2)
+        vid_log = torch.stack(pred_complete).permute(1, 0, 2, 3, 4).data
+        tensorboard.add_video('pred_complete', vid_log, self.current_epoch, 2)
+        vid_shape = real_sequence.shape
+        vid_log = real_sequence.view((vid_shape[0], vid_shape[1], 1, vid_shape[2], vid_shape[3]))
+        tensorboard.add_video('real_sequence_mask', vid_log, self.current_epoch, 2)
+        vid_log = fake_sequence.view((vid_shape[0], vid_shape[1], 1, vid_shape[2], vid_shape[3]))
+        tensorboard.add_video('fake_sequence_mask', vid_log, self.current_epoch, 2)
 
         # TODO: tensorboard
         # ### display output images
