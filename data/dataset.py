@@ -101,7 +101,6 @@ class VideoDataset(torch.utils.data.Dataset):
         video, target = self.dataset[item]
 
         video_len = video.shape[0]
-
         # videos can be of various length, we randomly sample sub-sequences
         if video_len >= self.video_length * self.every_nth:
             needed = self.every_nth * (self.video_length - 1)

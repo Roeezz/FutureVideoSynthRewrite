@@ -206,7 +206,7 @@ if __name__ == '__main__':
     # creating the part of the model
     model = NightCity(opt)
     # datasets Loader set up TODO: arg parser for folder of data
-    dataset = data.VideoFolderDataset(data_folder, cache=os.path.join(data_folder, 'local.db'))
+    dataset = data.VideoFolderDataset(data_folder, cache=os.path.join(data_folder, 'local.db'), min_len=16)
     video_dataset = data.VideoDataset(dataset, 16, t_in=opt.tIn, t_out=opt.tOut, every_nth=1)
     video_loader = DataLoader(video_dataset, batch_size=video_batch, drop_last=True, num_workers=2, shuffle=True)
 
