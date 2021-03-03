@@ -98,9 +98,9 @@ class NightCity(pl.LightningModule):
 
         self.manual_backward(self.loss_D_T, optimizer_D_T)
         optimizer_D_T.step()
-        print()  # empty line for the looks
-        print(self.loss_G.item(), ' loss_G')
-        print(self.loss_D_T.item(), ' loss_D_T')
+        # print()  # empty line for the looks
+        # print(self.loss_G.item(), ' loss_G')
+        # print(self.loss_D_T.item(), ' loss_D_T')
         self.log('loss_G', self.loss_G, on_epoch=True)
         self.log('loss_D_T', self.loss_D_T, on_epoch=True)
 
@@ -213,5 +213,5 @@ if __name__ == '__main__':
     dataloader = video_loader  # TODO: add a dataloader
     # pytorch lightning trainer for training the model
     tb_logger = pl_loggers.TensorBoardLogger('lightning_logs/')
-    trainer = pl.Trainer(gpus=1, logger=tb_logger, automatic_optimization=False)
+    trainer = pl.Trainer(gpus=1, logger=tb_logger, automatic_optimization=False, max_epochs=100)
     trainer.fit(model, dataloader)
