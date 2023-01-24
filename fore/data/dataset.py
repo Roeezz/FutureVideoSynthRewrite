@@ -84,7 +84,7 @@ def general_transform(imgs, start_channel=0, end_channel=3):
         # img = transforms.Normalize(mean_tuple, std_tuple)(img)
         vid.append(img)
 
-    vid = torch.stack(vid)
+    vid = torch.stack(vid).permute(1, 0, 2, 3)
     return vid
 
 
@@ -100,7 +100,6 @@ class VideoDataset(torch.utils.data.Dataset):
         video, target = self.dataset[item]
 
         video_len = video.shape[0]
-
         # videos can be of various length, we randomly sample sub-sequences
         if video_len >= self.video_length * self.every_nth:
             needed = self.every_nth * (self.video_length - 1)
