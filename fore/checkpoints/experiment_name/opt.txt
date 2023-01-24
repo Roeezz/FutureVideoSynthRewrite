@@ -1,0 +1,92 @@
+------------ Options -------------
+BackRoot: 
+ImagesRoot: /disk1/shared/dataset/cityscapes/cityscapes/leftImg8bit_sequence_256p/
+Instance: 
+InstanceGTRoot: 
+SemanticGTRoot: 
+SemanticRoot: /disk1/shared/dataset/cityscapes/cityscapes_2/leftImg8bit_sequence_semantic/
+TTUR: False
+adjacent_r: False
+back_image_nc: 3
+back_semantic_nc: 11
+batchSize: 6
+beta1: 0.5
+checkpoints_dir: ./checkpoints
+continue_train: False
+dataset: cityscapes
+dataset_mode: temporal
+debug: False
+display_freq: 100
+display_id: 0
+display_winsize: 512
+feat_num: 3
+fg_labels: [11, 12, 13]
+fineSize: 512
+flow_nc: 2
+gan_mode: ls
+gpu_ids: [0]
+image_nc: 3
+instance_nc: 1
+isTrain: True
+label_feat: False
+lambda_D: 4.0
+lambda_D_T: 8.0
+lambda_image: 30.0
+lambda_rotation: 2.0
+lambda_scale: 4.0
+lambda_shear: 2.0
+lambda_smooth: 2.0
+lambda_translationx: 6.0
+lambda_translationy: 6.0
+loadSize: 512
+load_features: False
+load_pretrain: 
+lr: 0.0002
+max_dataset_size: inf
+max_frames_backpropagate: 1
+max_frames_per_gpu: 1
+max_t_step: 1
+model: vid2vid
+nThreads: 10
+n_blocks: 9
+n_blocks_local: 3
+n_downsample_E: 3
+n_downsample_G: 3
+n_frames_D: 1
+n_frames_total: 30
+n_gpus_gen: 1
+n_layers_D: 3
+n_local_enhancers: 1
+n_scales_spatial: 1
+n_scales_temporal: 3
+name: experiment_name
+ndf: 64
+nef: 32
+netE: simple
+netG: composite
+ngf: 128
+niter: 200
+niter_decay: 200
+niter_fix_global: 0
+niter_step: 5
+no_flip: False
+no_html: False
+norm: batch
+num_D: 2
+only_dynamic: False
+only_large: False
+phase: train
+pool_size: 1
+print_freq: 100
+resize_or_crop: scaleWidth
+save_epoch_freq: 1
+save_latest_freq: 1000
+semantic_nc: 19
+serial_batches: False
+similar_input: False
+tIn: 4
+tOut: 5
+tf_log: False
+use_instance: False
+which_epoch: latest
+-------------- End ----------------
